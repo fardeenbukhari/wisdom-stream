@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <!-- CSS -->
+    <link href="https://vjs.zencdn.net/7.2.3/video-js.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://kit.fontawesome.com/c33c910392.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div class="alert alert-success alert-dismissible fade hide" role="alert">
+        <strong>Link Copied!</strong> Your link has been copied to clipboard.
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+    <div class="d-flex justify-content-center align-items-center">
+        <div class="container mt-5">
+            <div class="d-flex justify-content-center">
+                <div class="col-md-8 p-4">
+                    <video id='video-content' class="video-js vjs-default-skin embed-responsive embed-responsive-16by9"
+                        width="400" height="300" controls>
+                        <source class="video_source" type="application/x-mpegURL" src="<%- contentUrl %>">
+                    </video>
+                </div>
+            </div>
+            <div class="mt-3 text-center">
+                <i class="fa fa-eye text-success"></i> : <span class="clients_length"></span>
+                <div class="container col-md-8 text-center null-controls">
+                    <p>URL: <a class="room-url"></a> <br> <i class="fa fa-clipboard clip_button" style="cursor: pointer; display: none;" onclick="copy_to_clipboard(event)"></i></p>
+                    <button id="create-room" class="btn btn-primary mr-2">Create Room</button>
+                    <!-- <button id="join-room" class="btn btn-success">Join Room</button> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- <video id='hls-example' class="video-js vjs-default-skin" width="400" height="300" controls>
+        <source type="application/x-mpegURL" src="<%- contentUrl %>">
+    </video> -->
+
+    <!-- JS code -->
+    <!-- If you'd like to support IE8 (for Video.js versions prior to v7) -->
+    <script src="https://vjs.zencdn.net/ie8/ie8-version/videojs-ie8.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-contrib-hls/5.14.1/videojs-contrib-hls.js"></script>
+    <script src="https://vjs.zencdn.net/7.2.3/video.js"></script>
+    <!-- Bootstrap JS and Popper.js (required for Bootstrap functionality) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        const ws = new WebSocket('ws://127.0.0.1:9090');
+        const this_url = new URL(location.href);
+        const is_joinee = this_url.searchParams.has('room');
+        ws.onopen = () => {
+            if (is_joinee) {
+                const null_controls = document.querySelector('.null-controls');
+                null_controls.style.display = 'none';
+
+                const room_id = this_url.searchParams.get('room');
+                ws.send(JSON.stringify({
+                    type: 'join',
+                    room: {
+                        name: room_id
+                    }
+                }));
+            };
+        }
+        // Wait for the DOM to be ready before creating the player
+        document.addEventListener('DOMContentLoaded', function () {
+            var player = videojs('video-content');
+            if(is_joinee){
+                const controller_elem = document.querySelector('.vjs-control-bar');
+                controller_elem.style.display = 'none';
+            }
+            window.player = player;
+
+            let previousTime;
+            let currentTime;
+
+            player.on('timeupdate', function () {
+                previousTime = currentTime;
+                currentTime = player.currentTime();
+            });
+            player.on('seeking', function () {
+                ws.send(JSON.stringify({
+                    type: 'controls',
+                    currentTime,
+                    previousTime,
+                    control: 'timestamp'
+                }));
+            });
+
+            player.on("pause", function (e) {
+                ws.send(JSON.stringify({
+                    type: 'controls',
+                    currentTime,
+                    previousTime,
+                    control: 'pause'
+                }));
+            });
+
+            player.on("play", function (e) {
+                ws.send(JSON.stringify({
+                    type: 'controls',
+                    currentTime,
+                    previousTime,
+                    control: 'resume'
+                }));
+            });
+
+            // You can optionally set additional options for the player here
+
+            // Autoplay the video
+            // player.play();
+        });
+
+        const copy_to_clipboard = ()=>{
+            navigator.clipboard.writeText(document.querySelector('.room-url').textContent)
+            document.querySelector('.alert').classList.replace('hide', 'show')
+        }
+
+
+        const host_btn = document.querySelector('#create-room');
+        const join_btn = document.querySelector('#join-room');
+
+        host_btn.addEventListener('click', (event) => {
+            ws.send(JSON.stringify({
+                type: 'host',
+                room: {
+                    movie_url: document.querySelector('.video_source').src
+                }
+            }));
+        });
+
+        ws.onmessage = (wsMsg) => {
+            try {
+                const msg = JSON.parse(wsMsg.data);
+                if (msg.type === 'url') {
+                    const room_url_elem = document.querySelector('.room-url');
+                    room_url_elem.textContent = msg.room.url;
+                    
+                    const clip_button = document.querySelector('.clip_button');
+                    clip_button.style.display = 'block'
+                };
+                if (msg.type === 'controls') {
+                    if (msg.control === 'pause') {
+                        window.player.currentTime(msg.currentTime);
+                        window.player.pause();
+                    } else if (msg.control === 'resume') {
+                        window.player.currentTime(msg.currentTime);
+                        window.player.play();
+                    } else if (msg.control === 'timestamp') {
+                        window.player.currentTime(msg.currentTime);
+                    }
+                }
+                if(msg.type === 'connection'){
+                    document.querySelector('.clients_length').textContent = msg.clients.length;
+                };
+            } catch (error) {
+                //invalid json
+                console.error('invalid json to parse!', error);
+            };
+        }
+    </script>
+
+</body>
+
+</html>
