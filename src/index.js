@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import axios from 'axios';
+const url = require("url");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const views_path = path.join(__dirname, 'views');
@@ -36,7 +37,7 @@ function extractTitle(url) {
 // Function to get URLs for a specific page
 async function getUrlsForPage(pageNumber) {
     // Example URL with page parameter
-    const url = `https://www.mxplayer.in/movie-videos/hindi-movies?page=${pageNumber}`;
+    const url = `https://www.mxplayer.in/movie-videos/hindi-movies?page=${pageNumber}&search=true&q=${movName}`;
 
     try {
         // Make a GET request using axios
