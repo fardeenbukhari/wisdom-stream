@@ -10,6 +10,50 @@
 
 <body>
 
+
+
+
+    <div class="container mt-4">
+        <!-- Search form using Bootstrap -->
+        <form id="searchForm" class="form-inline mb-3">
+            <div class="form-group mx-sm-3 mb-2">
+                <label for="searchInput" class="sr-only">Search</label>
+                <input type="text" class="form-control" id="searchInput" placeholder="Search Movie">
+            </div>
+            <button type="button" class="btn btn-primary mb-2" onclick="searchMovies()">Search</button>
+        </form>
+
+        <!-- Existing content goes here -->
+
+        <!-- Display the video URLs -->
+        <% if (urls && urls.length > 0) { %>
+            <h3>Videos for Page <%= pageNumber %></h3>
+            <ul>
+                <% urls.forEach((url, i) => { %>
+                    <li>
+                        <strong><%= url.title %></strong>: <%= url.url %>
+                        <a href="/watch?u=<%= i %>&p=<%= pageNumber %>" class="btn btn-success btn-sm">Watch</a>
+                    </li>
+                <% }); %>
+            </ul>
+        <% } else { %>
+            <p>No videos found for Page <%= pageNumber %></p>
+        <% } %>
+    </div>
+
+    <script>
+        function searchMovies() {
+            var movName = document.getElementById('searchInput').value;
+            // You can use 'movName' in your existing logic or make an AJAX request, etc.
+            console.log('Searched Movie Name:', movName);
+            // Perform any other actions with 'movName' as needed
+        }
+    </script>
+
+    <!-- Add Bootstrap JS and jQuery CDN -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
     <div class="container mt-5">
         <h1>Movie Links</h1>
 
