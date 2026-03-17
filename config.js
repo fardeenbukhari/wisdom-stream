@@ -1,12 +1,12 @@
 let config = {
     http : {
         host : '127.0.0.1',
-        port : 9090 || process.env.PORT
+        port : process.env.PORT || 9090
     },
 
     gateway : {
         host : '127.0.0.1',
-        port : 9091 || process.env.PORT
+        port : process.env.GATEWAY_PORT || 9091
     }
 };
 
