@@ -6,7 +6,6 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import axios from 'axios';
-const url = require("url");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const views_path = path.join(__dirname, 'views');
@@ -281,20 +280,31 @@ WSS.on('connection', (socket) => {
             if (socket.room) {
                 const room_data = rooms.get(socket.room);
                 if (room_data.owner === socket.uuid) {
+                    // Notify remaining clients before deleting the room
+                    Object.values(room_data.clients).forEach(client => {
+                        if (client.uuid !== socket.uuid) {
+                            client.send(JSON.stringify({
+                                type: 'connection',
+                                clients: {
+                                    length: 0
+                                }
+                            }));
+                        }
+                    });
                     rooms.delete(socket.room);
                 } else if (room_data.clients[socket.uuid]) {
                     delete room_data.clients[socket.uuid];
+                    Object.values(room_data.clients).forEach(client => {
+                        if (socket.uuid !== client.uuid) {
+                            client.send(JSON.stringify({
+                                type: 'connection',
+                                clients: {
+                                    length: Object.keys(room_data.clients).length
+                                }
+                            }));
+                        }
+                    });
                 }
-                Object.values((rooms.get(socket.room)).clients).forEach(client => {
-                    if (socket.uuid !== client.uuid) {
-                        client.send(JSON.stringify({
-                            type: 'connection',
-                            clients: {
-                                length: Object.keys((rooms.get(socket.room)).clients).length
-                            }
-                        }));
-                    }
-                });
             };
         } catch (error) {
             console.log('AN ERROR occured when a client closed connection!', error);
