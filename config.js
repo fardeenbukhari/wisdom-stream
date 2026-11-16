@@ -1,12 +1,8 @@
-let config = {
-    http : {
-        host : '127.0.0.1',
-        port : 9090 || process.env.PORT
-    },
-
-    gateway : {
-        host : '127.0.0.1',
-        port : 9091 || process.env.PORT
+const config = {
+    http: {
+        // 0.0.0.0 lets other devices on the same Wi-Fi join your watch party
+        host: process.env.HOST || '0.0.0.0',
+        port: Number(process.env.PORT) || 9090
     }
 };
 

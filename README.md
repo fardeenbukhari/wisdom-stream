@@ -1,11 +1,41 @@
+# Wisdom Stream
 
+Watch videos together with friends, perfectly in sync.
 
-"Unlock the ultimate social streaming experience with Wisdom Stream!
+- **Watch parties**: the host plays, pauses and seeks, and everyone in the room follows (synced over WebSockets)
+- **Late join sync**: friends who join mid-movie start at the host's current position
+- **Live chat** inside each room
+- **HLS (.m3u8) and MP4** streaming with Video.js
+- **Play any link**: paste a direct `.mp4` / `.m3u8` URL
+- **Offline mode**: drop `.mp4` files into `public/videos/` and they appear on the home page
 
-Scrape MX Player M3U8 files effortlessly
-Stream in party mode with friends and family
-Synchronized playback for seamless viewing
-Real-time chat for discussion and connections
-Discover new content and communities
+> **Note:** Earlier versions scraped MX Player. MX Player's website now redirects to Prime Video
+> (DRM protected), so that no longer works. The app now ships with free Blender Foundation
+> open movies (Creative Commons) and supports any direct video link.
 
-Join the Wisdom Stream revolution and elevate your watch parties!"
+## Run it
+
+```bash
+npm install
+npm start
+```
+
+Open http://localhost:9090. The terminal also prints a `http://192.168.x.x:9090` address.
+Friends on the **same Wi-Fi** open that address (or the room link) to join.
+
+Change the port with `PORT=3000 npm start`.
+
+## How a watch party works
+
+1. Open a movie and click **Start watch party**
+2. Copy the link and send it to friends
+3. Friends open the link, enter their name and click **Join party**
+4. The host's play / pause / seek is mirrored for everyone, plus a sync check every 3 seconds
+
+## Tech
+
+Node.js, Express, EJS, `ws` (WebSockets), Video.js 8 (built-in HLS), Bootstrap 4.
+
+## Credits
+
+Big Buck Bunny, Sintel, Tears of Steel, Elephants Dream (c) Blender Foundation, licensed under Creative Commons.

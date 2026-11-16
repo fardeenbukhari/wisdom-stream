@@ -4,172 +4,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player</title>
-    <!-- CSS -->
-    <link href="https://vjs.zencdn.net/7.2.3/video-js.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <script src="https://kit.fontawesome.com/c33c910392.js" crossorigin="anonymous"></script>
+    <title><%= title %> - Wisdom Stream</title>
+    <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/videojs/video-js.min.css">
+    <link rel="stylesheet" href="/css/app.css">
 </head>
 
 <body>
-    <div class="alert alert-success alert-dismissible fade hide" role="alert">
-        <strong>Link Copied!</strong> Your link has been copied to clipboard.
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-    <div class="d-flex justify-content-center align-items-center">
-        <div class="container mt-5">
-            <div class="d-flex justify-content-center">
-                <div class="col-md-8 p-4">
-                    <video id='video-content' class="video-js vjs-default-skin embed-responsive embed-responsive-16by9"
-                        width="400" height="300" controls>
-                        <source class="video_source" type="application/x-mpegURL" src="<%- contentUrl %>">
-                    </video>
+    <nav class="navbar navbar-dark ws-nav">
+        <a class="navbar-brand font-weight-bold" href="/">Wisdom Stream</a>
+        <span class="navbar-text small"><span id="connStatus" class="status-dot"></span> <span id="connText">Connecting...</span></span>
+    </nav>
+
+    <div id="toast" class="ws-toast"></div>
+
+    <div class="container-fluid py-3 px-lg-4">
+        <div class="row">
+            <div class="col-lg-8 mb-3">
+                <div class="player-wrap">
+                    <video id="video-content" class="video-js vjs-big-play-centered vjs-fluid" controls preload="auto" playsinline></video>
+
+                    <div id="joinOverlay" class="join-overlay" style="display: none;">
+                        <h4>You're invited to a watch party</h4>
+                        <p class="text-muted-light mb-3"><%= title %></p>
+                        <input type="text" id="guestName" class="form-control mb-2" placeholder="Your name" maxlength="30">
+                        <button id="joinBtn" class="btn btn-success btn-lg">Join party</button>
+                    </div>
                 </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center mt-3">
+                    <h5 class="mb-2"><%= title %></h5>
+                    <span class="badge badge-pill badge-dark p-2 mb-2">&#128065; <span class="clients_length">1</span> watching</span>
+                </div>
+
+                <div id="hostPanel" class="card ws-card">
+                    <div class="card-body">
+                        <div id="hostIntro">
+                            <p class="mb-2">Watch this together with friends. You control play, pause and seek for everyone.</p>
+                            <button id="create-room" class="btn btn-primary">Start watch party</button>
+                        </div>
+                        <div id="roomInfo" style="display: none;">
+                            <p class="mb-1 small text-muted-light">Share this link (friends must be on the same Wi-Fi / network):</p>
+                            <div class="input-group">
+                                <input type="text" id="roomUrl" class="form-control room-url" readonly>
+                                <div class="input-group-append">
+                                    <button id="copyBtn" class="btn btn-outline-light">Copy</button>
+                                </div>
+                            </div>
+                            <p class="small text-muted-light mt-2 mb-0">Room code: <code id="roomCode"></code></p>
+                        </div>
+                    </div>
+                </div>
+                <p id="guestNote" class="small text-muted-light mt-2" style="display: none;">The host controls playback. Use the volume and fullscreen buttons freely.</p>
             </div>
-            <div class="mt-3 text-center">
-                <i class="fa fa-eye text-success"></i> : <span class="clients_length"></span>
-                <div class="container col-md-8 text-center null-controls">
-                    <p>URL: <a class="room-url"></a> <br> <i class="fa fa-clipboard clip_button" style="cursor: pointer; display: none;" onclick="copy_to_clipboard(event)"></i></p>
-                    <button id="create-room" class="btn btn-primary mr-2">Create Room</button>
-                    <!-- <button id="join-room" class="btn btn-success">Join Room</button> -->
+
+            <div class="col-lg-4 mb-3">
+                <div class="card ws-card chat-card">
+                    <div class="card-header">Live chat</div>
+                    <div id="chatMessages" class="chat-messages">
+                        <p class="chat-empty small text-muted-light">Start a watch party to chat with friends.</p>
+                    </div>
+                    <form id="chatForm" class="chat-form">
+                        <input type="text" id="chatInput" class="form-control" placeholder="Say something..." maxlength="500" autocomplete="off" disabled>
+                        <button class="btn btn-primary ml-2" id="chatSend" disabled>Send</button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 
-
-    <!-- <video id='hls-example' class="video-js vjs-default-skin" width="400" height="300" controls>
-        <source type="application/x-mpegURL" src="<%- contentUrl %>">
-    </video> -->
-
-    <!-- JS code -->
-    <!-- If you'd like to support IE8 (for Video.js versions prior to v7) -->
-    <script src="https://vjs.zencdn.net/ie8/ie8-version/videojs-ie8.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/videojs-contrib-hls/5.14.1/videojs-contrib-hls.js"></script>
-    <script src="https://vjs.zencdn.net/7.2.3/video.js"></script>
-    <!-- Bootstrap JS and Popper.js (required for Bootstrap functionality) -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
-    <script>
-        const ws = new WebSocket('ws://127.0.0.1:9090');
-        const this_url = new URL(location.href);
-        const is_joinee = this_url.searchParams.has('room');
-        ws.onopen = () => {
-            if (is_joinee) {
-                const null_controls = document.querySelector('.null-controls');
-                null_controls.style.display = 'none';
-
-                const room_id = this_url.searchParams.get('room');
-                ws.send(JSON.stringify({
-                    type: 'join',
-                    room: {
-                        name: room_id
-                    }
-                }));
-            };
-        }
-        // Wait for the DOM to be ready before creating the player
-        document.addEventListener('DOMContentLoaded', function () {
-            var player = videojs('video-content');
-            if(is_joinee){
-                const controller_elem = document.querySelector('.vjs-control-bar');
-                controller_elem.style.display = 'none';
-            }
-            window.player = player;
-
-            let previousTime;
-            let currentTime;
-
-            player.on('timeupdate', function () {
-                previousTime = currentTime;
-                currentTime = player.currentTime();
-            });
-            player.on('seeking', function () {
-                ws.send(JSON.stringify({
-                    type: 'controls',
-                    currentTime,
-                    previousTime,
-                    control: 'timestamp'
-                }));
-            });
-
-            player.on("pause", function (e) {
-                ws.send(JSON.stringify({
-                    type: 'controls',
-                    currentTime,
-                    previousTime,
-                    control: 'pause'
-                }));
-            });
-
-            player.on("play", function (e) {
-                ws.send(JSON.stringify({
-                    type: 'controls',
-                    currentTime,
-                    previousTime,
-                    control: 'resume'
-                }));
-            });
-
-            // You can optionally set additional options for the player here
-
-            // Autoplay the video
-            // player.play();
-        });
-
-        const copy_to_clipboard = ()=>{
-            navigator.clipboard.writeText(document.querySelector('.room-url').textContent)
-            document.querySelector('.alert').classList.replace('hide', 'show')
-        }
-
-
-        const host_btn = document.querySelector('#create-room');
-        const join_btn = document.querySelector('#join-room');
-
-        host_btn.addEventListener('click', (event) => {
-            ws.send(JSON.stringify({
-                type: 'host',
-                room: {
-                    movie_url: document.querySelector('.video_source').src
-                }
-            }));
-        });
-
-        ws.onmessage = (wsMsg) => {
-            try {
-                const msg = JSON.parse(wsMsg.data);
-                if (msg.type === 'url') {
-                    const room_url_elem = document.querySelector('.room-url');
-                    room_url_elem.textContent = msg.room.url;
-                    
-                    const clip_button = document.querySelector('.clip_button');
-                    clip_button.style.display = 'block'
-                };
-                if (msg.type === 'controls') {
-                    if (msg.control === 'pause') {
-                        window.player.currentTime(msg.currentTime);
-                        window.player.pause();
-                    } else if (msg.control === 'resume') {
-                        window.player.currentTime(msg.currentTime);
-                        window.player.play();
-                    } else if (msg.control === 'timestamp') {
-                        window.player.currentTime(msg.currentTime);
-                    }
-                }
-                if(msg.type === 'connection'){
-                    document.querySelector('.clients_length').textContent = msg.clients.length;
-                };
-            } catch (error) {
-                //invalid json
-                console.error('invalid json to parse!', error);
-            };
-        }
-    </script>
-
+    <script>window.PAGE_DATA = <%- pageData %>;</script>
+    <script src="/vendor/videojs/video.min.js"></script>
+    <script src="/js/watch.js"></script>
 </body>
 
 </html>

@@ -1,307 +1,281 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import http from 'node:http';
-import config from '../config.js';
+import os from 'node:os';
+import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import axios from 'axios';
-const url = require("url");
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import config from '../config.js';
+import catalog from './catalog.js';
 
-const views_path = path.join(__dirname, 'views');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.join(__dirname, '..');
+const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
+const LOCAL_VIDEO_DIR = path.join(PUBLIC_DIR, 'videos');
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.set('views', views_path);
+app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
+
+app.use(express.static(PUBLIC_DIR));
+// Serve player + CSS libraries locally so the app still works on a slow network
+app.use('/vendor/videojs', express.static(path.join(ROOT_DIR, 'node_modules/video.js/dist')));
+app.use('/vendor/bootstrap', express.static(path.join(ROOT_DIR, 'node_modules/bootstrap/dist')));
+
+/* ---------------------------- video sources ---------------------------- */
+
+function prettifyFileName(file) {
+    return path.parse(file).name
+        .replace(/[-_.]+/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Any .mp4 / .webm / .m3u8 file dropped in public/videos shows up automatically
+function getLocalVideos() {
+    try {
+        return fs.readdirSync(LOCAL_VIDEO_DIR)
+            .filter(file => /\.(mp4|webm|m3u8)$/i.test(file))
+            .map(file => ({
+                id: 'local-' + file,
+                title: prettifyFileName(file),
+                description: 'Local file - plays even without internet.',
+                thumb: null,
+                src: '/videos/' + encodeURIComponent(file),
+                credit: ''
+            }));
+    } catch {
+        return [];
+    }
+}
+
+function getAllVideos() {
+    return [...getLocalVideos(), ...catalog];
+}
+
+function mimeTypeFor(src) {
+    if (/\.m3u8(\?|#|$)/i.test(src)) return 'application/x-mpegURL';
+    if (/\.webm(\?|#|$)/i.test(src)) return 'video/webm';
+    return 'video/mp4';
+}
+
+function isHttpUrl(value) {
+    try {
+        const parsed = new URL(value);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+}
+
+// Accepts full http(s) links and local paths like /videos/movie.mp4
+function isPlayableSrc(value) {
+    try {
+        return isHttpUrl(new URL(value, 'http://localhost').href);
+    } catch {
+        return false;
+    }
+}
+
+// Safe way to hand data to inline <script> tags
+function toScriptJson(data) {
+    return JSON.stringify(data).replace(/</g, '\\u003c');
+}
+
+function getLanUrls() {
+    const urls = [];
+    for (const addresses of Object.values(os.networkInterfaces())) {
+        for (const address of addresses || []) {
+            if (address.family === 'IPv4' && !address.internal) {
+                urls.push(`http://${address.address}:${config.http.port}`);
+            }
+        }
+    }
+    return urls;
+}
+
+/* -------------------------------- routes ------------------------------- */
 
 const rooms = new Map();
 
-// Function to extract title from a given URL
-function extractTitle(url) {
-    // Remove the common prefix
-    url = url.replace('https://www.mxplayer.in/movie/watch', '');
-
-    // Remove everything from "online" onward
-    url = url.replace(/online.*$/, '');
-
-    // Replace hyphens with spaces and capitalize the words
-    const title = url.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-
-    return title;
-}
-
-// Function to get URLs for a specific page
-async function getUrlsForPage(pageNumber) {
-    // Example URL with page parameter
-    const url = `https://www.mxplayer.in/movie-videos/hindi-movies?page=${pageNumber}&search=true&q=${movName}`;
-
-    try {
-        // Make a GET request using axios
-        const response = await axios.get(url);
-
-        // Extracted HTML content
-        const html = response.data;
-
-        // Define the regex pattern to match URLs
-        const urlPattern = /,"url":"(https:\/\/www\.mxplayer\.in\/movie\/[^"]+)","name"/;
-
-        // Perform the regex match for URLs
-        const urlMatches = html.match(new RegExp(urlPattern, 'g'));
-
-        if (urlMatches) {
-            // Extracted URLs
-            return urlMatches.map(match => match.match(urlPattern)[1]);
-        } else {
-            return [];
-        }
-    } catch (error) {
-        console.error('Axios error:', error.message);
-        return [];
-    }
-};
-
-//urls for each user
-const global_urls = {};
-
-// Serve HTML and handle requests
-app.get('/', async (req, res) => {
-    // Get the current page number from the query string, default to 1 if not set
-    const pageNumber = parseInt(req.query.page) || 1;
-
-    let indexes = [];
-    let final_urls = [];
-
-    if (global_urls[pageNumber]) {
-        global_urls[pageNumber].forEach((url, i) => {
-            indexes.push({
-                title: url.title,
-                url: i
-            });
-        });
-        return res.render('home', {
-            urls: indexes,
-            pageNumber,
-        });
-    } else {
-        let urls = await getUrlsForPage(pageNumber);
-        // Get URLs for the current page
-
-        for (const url of urls) {
-            const title = extractTitle(url);
-            final_urls.push({
-                url: url,
-                title: title
-            });
-        };
-
-        global_urls[pageNumber] = {};
-        global_urls[pageNumber] = final_urls;
-    }
-
-    global_urls[pageNumber].forEach((url, i) => {
-        indexes.push({
-            title: url.title,
-            url: i
-        });
-    });
-
-
-    // Render HTML
+app.get('/', (req, res) => {
     res.render('home', {
-        urls: indexes,
-        pageNumber,
+        videos: getAllVideos(),
+        q: typeof req.query.q === 'string' ? req.query.q : ''
     });
 });
 
-app.get('/watch', async (req, res) => {
+app.get('/watch', (req, res) => {
+    let video;
 
-    try {
-        if (req.query.room) {
-            // Render HTML
-            const current_room = rooms.get(req.query.room);
-
-            return res.render('video', {
-                contentUrl: current_room.movie_url
+    if (req.query.room) {
+        const room = rooms.get(String(req.query.room));
+        if (!room) {
+            return res.status(404).render('message', {
+                title: 'Room not found',
+                text: 'This watch party has ended or the link is wrong. Ask the host for a new link.'
             });
         }
-        // URL of the page to scrape
-        const url_index = req.query.u;
-        const pageNumber = req.query.p;
-
-        const final_url_obj = global_urls[pageNumber][url_index];
-
-        // Make a GET request using axios
-        const response = await axios.get(final_url_obj.url);
-
-        // Extracted HTML content
-        const html = response.data;
-
-        // Use regular expressions to extract the contentUrl value
-        const pattern = /"contentUrl":"(https:\/\/[^"]+)"/;
-        const matches = html.match(pattern);
-
-        // Check if the contentUrl is found
-        if (matches && matches[1]) {
-            const contentUrl = matches[1];
-
-            // Render HTML
-            res.render('video', {
-                contentUrl
-            });
-        } else {
-            res.send('Content URL not found.');
-        }
-    } catch (error) {
-        console.error('Axios error:', error);
-        res.send('Error fetching content.');
+        video = { title: room.title, src: room.src };
+    } else if (req.query.v) {
+        video = getAllVideos().find(v => v.id === req.query.v);
+    } else if (req.query.url && isHttpUrl(String(req.query.url))) {
+        video = { title: 'Custom video', src: String(req.query.url) };
     }
+
+    if (!video) {
+        return res.status(404).render('message', {
+            title: 'Video not found',
+            text: 'Pick a movie from the home page, or paste a direct .mp4 / .m3u8 link.'
+        });
+    }
+
+    res.render('video', {
+        title: video.title,
+        pageData: toScriptJson({
+            src: video.src,
+            type: mimeTypeFor(video.src),
+            title: video.title,
+            room: req.query.room ? String(req.query.room) : null
+        })
+    });
 });
 
-
-// app.get('/', (req, res) => {
-//     res.sendFile(path.join(__dirname, '../index.html'));
-// });
+/* ------------------------------ websockets ----------------------------- */
 
 const server = http.createServer(app);
-
-const WSS = new WebSocketServer({ server: server });
-
+const WSS = new WebSocketServer({ server });
 
 /*
-message format : JSON data;
+message format : JSON data
+{ type: 'host' | 'join' | 'controls' | 'chat', ... }
+*/
 
-{
-    type : '',
-    payload : '',
+function send(socket, message) {
+    if (socket.readyState === socket.OPEN) {
+        socket.send(JSON.stringify(message));
+    }
 }
 
-*/
+function broadcast(room, message, exceptUuid = null) {
+    for (const client of room.clients.values()) {
+        if (client.uuid !== exceptUuid) send(client, message);
+    }
+}
+
+function sendViewerCount(room) {
+    broadcast(room, { type: 'connection', clients: { length: room.clients.size } });
+}
+
+// Where the host's video is *right now*, so late joiners start at the same spot
+function currentRoomState(room) {
+    if (!room.state) return null;
+    const elapsed = room.state.paused ? 0 : (Date.now() - room.state.at) / 1000;
+    return { currentTime: room.state.currentTime + elapsed, paused: room.state.paused };
+}
 
 WSS.on('connection', (socket) => {
     socket.uuid = crypto.randomUUID();
 
-
-    socket.on('message', (msg) => {
+    socket.on('message', (raw) => {
+        let message;
         try {
-            const message = JSON.parse(msg);
-            switch (message.type) {
-                case 'host': {
-                    const random_room_name = 'wisdom_' + (Math.random()).toString().split('.')[1];
-                    const clients = {};
+            message = JSON.parse(raw);
+        } catch {
+            return; // ignore invalid JSON
+        }
 
-                    clients[socket.uuid] = socket;
+        switch (message.type) {
+            case 'host': {
+                if (socket.room) break; // already hosting
+                if (!message.room || !isPlayableSrc(String(message.room.src || ''))) break;
 
-                    rooms.set(random_room_name, {
-                        owner: socket.uuid,
-                        clients: clients,
-                        movie_url: message.room.movie_url
-                    });
-
-                    const constructed_url = 'https://127.0.0.1:9090/watch?room=' + random_room_name;
-
-                    socket.room = random_room_name;
-                    Object.values((rooms.get(socket.room)).clients).forEach(client => {
-                        client.send(JSON.stringify({
-                            type: 'connection',
-                            clients: {
-                                length: Object.keys((rooms.get(socket.room)).clients).length
-                            }
-                        }));
-                    });
-
-                    socket.send(JSON.stringify({
-                        type: 'url',
-                        room: {
-                            url: constructed_url
-                        }
-                    }));
-                    break;
+                const roomName = 'wisdom_' + crypto.randomBytes(4).toString('hex');
+                const room = {
+                    owner: socket.uuid,
+                    clients: new Map([[socket.uuid, socket]]),
+                    src: String(message.room.src),
+                    title: String(message.room.title || 'Watch party').slice(0, 120),
+                    state: null
                 };
-                case 'join': {
-                    if (!rooms.has(message.room.name)) {
-                        socket.send(JSON.stringify({
-                            type: 'error',
-                            message: 'room does not exist!'
-                        }));
-                        break;
-                    };
-                    let old_room_data = rooms.get(message.room.name);
-                    socket.room = message.room.name;
+                rooms.set(roomName, room);
+                socket.room = roomName;
 
-                    old_room_data.clients[socket.uuid] = socket;
+                send(socket, { type: 'room', room: { name: roomName, lanUrls: getLanUrls() } });
+                sendViewerCount(room);
+                break;
+            }
 
-                    Object.values((rooms.get(socket.room)).clients).forEach(client => {
-                        client.send(JSON.stringify({
-                            type: 'connection',
-                            clients: {
-                                length: Object.keys((rooms.get(socket.room)).clients).length
-                            }
-                        }));
-                    });
-
-                    rooms.set(message.room.name, old_room_data);
-
-                    break;
-                };
-                case 'controls': {
-                    if (!rooms.has(socket.room)) {
-                        socket.send(JSON.stringify({
-                            type: 'error',
-                            message: 'room does not exist!'
-                        }));
-                        break;
-                    };
-
-                    const current_room = rooms.get(socket.room);
-
-                    const room_clients = (rooms.get(socket.room)).clients;
-
-                    Object.values(room_clients).forEach(client => {
-                        if (current_room.owner === socket.uuid && client.uuid !== socket.uuid) {
-                            client.send(JSON.stringify(message));
-                        }
-                    });
-
+            case 'join': {
+                const roomName = message.room && String(message.room.name);
+                const room = rooms.get(roomName);
+                if (!room) {
+                    send(socket, { type: 'error', message: 'Room does not exist!' });
                     break;
                 }
+                socket.room = roomName;
+                room.clients.set(socket.uuid, socket);
+                sendViewerCount(room);
+
+                const state = currentRoomState(room);
+                if (state) send(socket, { type: 'controls', control: 'sync', ...state });
+                break;
+            }
+
+            case 'controls': {
+                const room = rooms.get(socket.room);
+                if (!room || room.owner !== socket.uuid) break; // only the host controls playback
+
+                const currentTime = Number(message.currentTime) || 0;
+                const paused = Boolean(message.paused);
+                room.state = { currentTime, paused, at: Date.now() };
+
+                broadcast(room, { type: 'controls', control: message.control, currentTime, paused }, socket.uuid);
+                break;
+            }
+
+            case 'chat': {
+                const room = rooms.get(socket.room);
+                if (!room) break;
+                const text = String(message.text || '').trim().slice(0, 500);
+                if (!text) break;
+                const name = String(message.name || 'Guest').trim().slice(0, 30) || 'Guest';
+
+                broadcast(room, {
+                    type: 'chat',
+                    name,
+                    text,
+                    isHost: room.owner === socket.uuid,
+                    self: false
+                }, socket.uuid);
+                send(socket, { type: 'chat', name, text, isHost: room.owner === socket.uuid, self: true });
+                break;
             }
         }
-        catch (err) {
-            //invalid json
-            console.log('an error occured with client message', err);
-        };
     });
 
     socket.on('close', () => {
-        try {
-            if (socket.room) {
-                const room_data = rooms.get(socket.room);
-                if (room_data.owner === socket.uuid) {
-                    rooms.delete(socket.room);
-                } else if (room_data.clients[socket.uuid]) {
-                    delete room_data.clients[socket.uuid];
-                }
-                Object.values((rooms.get(socket.room)).clients).forEach(client => {
-                    if (socket.uuid !== client.uuid) {
-                        client.send(JSON.stringify({
-                            type: 'connection',
-                            clients: {
-                                length: Object.keys((rooms.get(socket.room)).clients).length
-                            }
-                        }));
-                    }
-                });
-            };
-        } catch (error) {
-            console.log('AN ERROR occured when a client closed connection!', error);
-        };
+        const room = rooms.get(socket.room);
+        if (!room) return;
+
+        if (room.owner === socket.uuid) {
+            broadcast(room, { type: 'host-left' }, socket.uuid);
+            rooms.delete(socket.room);
+        } else {
+            room.clients.delete(socket.uuid);
+            sendViewerCount(room);
+        }
     });
 });
 
-server.listen(9090, () => {
-    console.log('[LISTENING] HTTP and WEBSOCKET ON ', config.http, config.gateway);
+server.listen(config.http.port, config.http.host, () => {
+    console.log(`\nWisdom Stream is running:`);
+    console.log(`  On this computer:  http://localhost:${config.http.port}`);
+    for (const url of getLanUrls()) {
+        console.log(`  On the same Wi-Fi: ${url}`);
+    }
+    console.log('');
 });
