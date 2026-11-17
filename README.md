@@ -25,6 +25,17 @@ Friends on the **same Wi-Fi** open that address (or the room link) to join.
 
 Change the port with `PORT=3000 npm start`.
 
+## Windows app (.exe)
+
+```bash
+npm install
+npm run build:exe
+```
+
+This creates `dist/WisdomStream.exe`, a single file that needs no Node.js install.
+Double-click it: the server starts and the browser opens automatically.
+Put `.mp4` files in a `videos` folder next to the .exe to play them offline.
+
 ## How a watch party works
 
 1. Open a movie and click **Start watch party**

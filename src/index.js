@@ -1,4 +1,5 @@
 import express from 'express';
+import ejs from 'ejs';
 import { WebSocketServer } from 'ws';
 import http from 'node:http';
 import os from 'node:os';
@@ -6,22 +7,31 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { exec } from 'node:child_process';
 import config from '../config.js';
 import catalog from './catalog.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT_DIR = path.join(__dirname, '..');
+// Works both with `npm start` (ES module) and inside the packaged .exe (bundled CommonJS)
+const SRC_DIR = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.join(SRC_DIR, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
-const LOCAL_VIDEO_DIR = path.join(PUBLIC_DIR, 'videos');
+const IS_EXE = Boolean(process.pkg);
+// In the .exe, put your own videos in a "videos" folder next to WisdomStream.exe
+const LOCAL_VIDEO_DIR = IS_EXE
+    ? path.join(path.dirname(process.execPath), 'videos')
+    : path.join(PUBLIC_DIR, 'videos');
+try { fs.mkdirSync(LOCAL_VIDEO_DIR, { recursive: true }); } catch { /* read-only location */ }
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(ROOT_DIR, 'src', 'views'));
+app.engine('ejs', ejs.__express); // registered explicitly so it works inside the .exe
 app.set('view engine', 'ejs');
 
 app.use(express.static(PUBLIC_DIR));
+app.use('/videos', express.static(LOCAL_VIDEO_DIR));
 // Serve player + CSS libraries locally so the app still works on a slow network
 app.use('/vendor/videojs', express.static(path.join(ROOT_DIR, 'node_modules/video.js/dist')));
 app.use('/vendor/bootstrap', express.static(path.join(ROOT_DIR, 'node_modules/bootstrap/dist')));
@@ -104,6 +114,7 @@ const rooms = new Map();
 app.get('/', (req, res) => {
     res.render('home', {
         videos: getAllVideos(),
+        videosFolder: IS_EXE ? 'the "videos" folder next to WisdomStream.exe' : 'public/videos/',
         q: typeof req.query.q === 'string' ? req.query.q : ''
     });
 });
@@ -271,11 +282,39 @@ WSS.on('connection', (socket) => {
     });
 });
 
+function openBrowser(url) {
+    const command = process.platform === 'win32' ? `start "" "${url}"`
+        : process.platform === 'darwin' ? `open "${url}"`
+            : `xdg-open "${url}"`;
+    exec(command, () => { /* ignore if no browser can be opened */ });
+}
+
+server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+        console.error(`\nPort ${config.http.port} is already in use. Wisdom Stream may already be running.`);
+        console.error(`Open http://localhost:${config.http.port} in your browser, or close the other window and try again.`);
+    } else {
+        console.error('\nCould not start the server:', error.message);
+    }
+    if (IS_EXE) {
+        console.error('\nThis window will close in 30 seconds.');
+        setTimeout(() => process.exit(1), 30000);
+    } else {
+        process.exit(1);
+    }
+});
+
 server.listen(config.http.port, config.http.host, () => {
+    const localUrl = `http://localhost:${config.http.port}`;
     console.log(`\nWisdom Stream is running:`);
-    console.log(`  On this computer:  http://localhost:${config.http.port}`);
+    console.log(`  On this computer:  ${localUrl}`);
     for (const url of getLanUrls()) {
         console.log(`  On the same Wi-Fi: ${url}`);
+    }
+    if (IS_EXE) {
+        console.log(`\nYour own videos folder: ${LOCAL_VIDEO_DIR}`);
+        console.log('Keep this window open while watching. Close it to stop Wisdom Stream.');
+        openBrowser(localUrl);
     }
     console.log('');
 });
