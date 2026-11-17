@@ -6,6 +6,7 @@
     ],
     "assets": [
       "src/views/**/*",
+      "public/favicon.ico",
       "public/css/**/*",
       "public/js/**/*",
       "node_modules/video.js/dist/video.min.js",

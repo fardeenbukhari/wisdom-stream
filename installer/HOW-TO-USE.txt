@@ -1,0 +1,26 @@
+WISDOM STREAM - Watch together, in sync
+=======================================
+
+START
+1. Open "Wisdom Stream" from your Desktop or Start menu.
+2. A black window opens and your browser opens Wisdom Stream automatically.
+   Keep the black window open. Closing it stops the app.
+3. If Windows Firewall asks: tick "Private networks" and click "Allow".
+   (This lets friends on the same Wi-Fi join.)
+
+WATCH PARTY
+1. Open a movie and click "Start watch party".
+2. Copy the link and open it on a friend's phone/laptop (same Wi-Fi or hotspot).
+3. Friend types a name and clicks "Join party".
+4. You play / pause / skip and everyone follows. Use the chat on the right.
+
+OWN VIDEOS (works without internet)
+Start menu > Wisdom Stream > "My Videos Folder". Put .mp4 files there,
+then refresh the home page.
+
+PROBLEMS
+- "Port 9090 is already in use": the app is already running. Open http://localhost:9090
+- Friends can't open the link: put everyone on the same phone hotspot.
+
+UNINSTALL
+Settings > Apps > Wisdom Stream > Uninstall

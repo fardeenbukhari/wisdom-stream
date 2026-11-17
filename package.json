@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",
-    "build:exe": "esbuild src/index.js --bundle --platform=node --format=cjs --target=node22 --outfile=build/server.cjs --log-override:empty-import-meta=silent && pkg build/server.cjs --config pkg.config.json --output dist/WisdomStream.exe"
+    "build:exe": "esbuild src/index.js --bundle --platform=node --format=cjs --target=node22 --outfile=build/server.cjs --log-override:empty-import-meta=silent && pkg build/server.cjs --config pkg.config.json --output dist/WisdomStream.exe",
+    "build:installer": "npm run build:exe && makensis installer/installer.nsi"
   },
   "keywords": [],
   "author": "Sajid Banday",

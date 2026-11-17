@@ -36,6 +36,16 @@ This creates `dist/WisdomStream.exe`, a single file that needs no Node.js instal
 Double-click it: the server starts and the browser opens automatically.
 Put `.mp4` files in a `videos` folder next to the .exe to play them offline.
 
+### Installer (Setup.exe)
+
+```bash
+sudo apt install nsis   # once (Linux), or install NSIS on Windows
+npm run build:installer
+```
+
+This creates `dist/WisdomStream-Setup.exe`: installs for the current user (no admin needed),
+adds Desktop + Start menu shortcuts, and appears in Settings > Apps with an uninstaller.
+
 ## How a watch party works
 
 1. Open a movie and click **Start watch party**
