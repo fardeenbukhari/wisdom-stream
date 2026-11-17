@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wisdom Stream - Watch together, in sync</title>
+    <meta name="description" content="Watch videos with friends, perfectly in sync, with live chat. No sign-up, works in the browser.">
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" href="vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-dark ws-nav">
+        <a class="navbar-brand font-weight-bold" href="./">Wisdom Stream</a>
+        <span class="navbar-text small">Watch together. In sync.</span>
+    </nav>
+
+    <div class="container pb-4">
+        <div class="hero text-center">
+            <h1>Watch together, anywhere</h1>
+            <p class="text-muted-light mb-0">Pick a movie, start a watch party and share the link. Play, pause and seek
+                stay in sync for everyone, with live chat. No sign-up, nothing to install.</p>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-6 mb-3">
+                <div class="card ws-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Play any video link</h5>
+                        <p class="card-text small text-muted-light">Paste a direct <code>.mp4</code> or <code>.m3u8</code> (HLS) link that starts with https://</p>
+                        <form id="linkForm" class="d-flex">
+                            <input type="url" id="linkInput" class="form-control mr-2" placeholder="https://example.com/movie.m3u8" required>
+                            <button class="btn btn-primary">Play</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card ws-card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Join a watch party</h5>
+                        <p class="card-text small text-muted-light">Paste the party link or the 6-letter room code your friend shared.</p>
+                        <form id="joinForm" class="d-flex">
+                            <input type="text" id="joinInput" class="form-control mr-2" placeholder="ABC123" required>
+                            <button class="btn btn-success">Join</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center mt-3 mb-3">
+            <h4 class="mb-2">Movies</h4>
+            <input type="search" id="searchInput" class="form-control ws-search mb-2" placeholder="Search movies...">
+        </div>
+
+        <div class="row" id="movieGrid"></div>
+        <p id="noResults" class="text-muted-light" style="display: none;">No movies match your search.</p>
+
+        <p class="small text-muted-light mt-4 mb-0">
+            Movies are Blender Foundation open movies (Creative Commons). Watch parties connect browsers directly
+            (peer-to-peer, WebRTC), so friends can join from any network.
+        </p>
+    </div>
+
+    <script src="js/catalog.js"></script>
+    <script>
+        const grid = document.getElementById('movieGrid');
+
+        window.WS_CATALOG.forEach((video) => {
+            const col = document.createElement('div');
+            col.className = 'col-sm-6 col-lg-4 mb-4 movie-item';
+            col.dataset.title = video.title.toLowerCase();
+
+            const card = document.createElement('a');
+            card.className = 'card ws-card movie-card h-100';
+            card.href = 'watch.html?v=' + encodeURIComponent(video.id);
+
+            const img = document.createElement('img');
+            img.className = 'card-img-top movie-thumb';
+            img.src = video.thumb;
+            img.alt = video.title;
+            img.loading = 'lazy';
+            img.onerror = () => {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'movie-thumb placeholder-thumb';
+                placeholder.textContent = '▶';
+                img.replaceWith(placeholder);
+            };
+
+            const body = document.createElement('div');
+            body.className = 'card-body';
+            const title = document.createElement('h6');
+            title.className = 'card-title mb-1';
+            title.textContent = video.title;
+            const desc = document.createElement('p');
+            desc.className = 'card-text small text-muted-light mb-0';
+            desc.textContent = video.description;
+            body.append(title, desc);
+
+            card.append(img, body);
+            col.append(card);
+            grid.append(col);
+        });
+
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            let shown = 0;
+            document.querySelectorAll('.movie-item').forEach((item) => {
+                const match = item.dataset.title.includes(query);
+                item.style.display = match ? '' : 'none';
+                if (match) shown++;
+            });
+            document.getElementById('noResults').style.display = shown ? 'none' : '';
+        });
+
+        document.getElementById('linkForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const url = document.getElementById('linkInput').value.trim();
+            location.href = 'watch.html?url=' + encodeURIComponent(url);
+        });
+
+        document.getElementById('joinForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const value = document.getElementById('joinInput').value.trim();
+            let room = value;
+            try {
+                room = new URL(value).searchParams.get('room') || value;
+            } catch { /* plain room code */ }
+            location.href = 'watch.html?room=' + encodeURIComponent(room.toUpperCase());
+        });
+    </script>
+</body>
+
+</html>

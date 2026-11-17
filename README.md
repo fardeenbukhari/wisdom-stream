@@ -2,6 +2,16 @@
 
 Watch videos together with friends, perfectly in sync.
 
+**Live web version:** https://fardeenbukhari.github.io/wisdom-stream/
+
+## Two versions
+
+| | Web version (`docs/`) | Server version (`src/`) |
+|---|---|---|
+| Runs on | GitHub Pages, no server | Node.js / Windows .exe |
+| Friends join from | Any network (peer-to-peer WebRTC via PeerJS) | Same Wi-Fi / network |
+| Own video files | Paste any https link | `public/videos/` folder, works offline |
+
 - **Watch parties**: the host plays, pauses and seeks, and everyone in the room follows (synced over WebSockets)
 - **Late join sync**: friends who join mid-movie start at the host's current position
 - **Live chat** inside each room

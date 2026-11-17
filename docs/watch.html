@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wisdom Stream</title>
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" href="vendor/bootstrap.min.css">
+    <link rel="stylesheet" href="vendor/video-js.min.css">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-dark ws-nav">
+        <a class="navbar-brand font-weight-bold" href="./">Wisdom Stream</a>
+        <span class="navbar-text small"><span id="connStatus" class="status-dot online"></span> <span id="connText">Ready</span></span>
+    </nav>
+
+    <div id="toast" class="ws-toast"></div>
+
+    <div class="container-fluid py-3 px-lg-4">
+        <div class="row">
+            <div class="col-lg-8 mb-3">
+                <div class="player-wrap">
+                    <video id="video-content" class="video-js vjs-big-play-centered vjs-fluid" controls preload="auto" playsinline></video>
+
+                    <div id="joinOverlay" class="join-overlay" style="display: none;">
+                        <h4>You're invited to a watch party</h4>
+                        <p class="text-muted-light mb-3">Room <span id="overlayRoom" class="room-code-big"></span></p>
+                        <input type="text" id="guestName" class="form-control mb-2" placeholder="Your name" maxlength="30">
+                        <button id="joinBtn" class="btn btn-success btn-lg">Join party</button>
+                        <p id="joinError" class="join-error small mt-3 mb-0"></p>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap justify-content-between align-items-center mt-3">
+                    <h5 class="mb-2" id="videoTitle"></h5>
+                    <span class="badge badge-pill badge-dark p-2 mb-2">&#128065; <span class="clients_length">1</span> watching</span>
+                </div>
+
+                <div id="hostPanel" class="card ws-card">
+                    <div class="card-body">
+                        <div id="hostIntro">
+                            <p class="mb-2">Watch this together with friends anywhere. You control play, pause and seek for everyone.</p>
+                            <button id="create-room" class="btn btn-primary">Start watch party</button>
+                        </div>
+                        <div id="roomInfo" style="display: none;">
+                            <p class="mb-1 small text-muted-light">Share this link. Friends can join from any network. Keep this tab open.</p>
+                            <div class="input-group">
+                                <input type="text" id="roomUrl" class="form-control room-url" readonly>
+                                <div class="input-group-append">
+                                    <button id="copyBtn" class="btn btn-outline-light">Copy</button>
+                                </div>
+                            </div>
+                            <p class="small text-muted-light mt-2 mb-0">Room code: <span id="roomCode" class="room-code-big"></span></p>
+                        </div>
+                    </div>
+                </div>
+                <p id="guestNote" class="small text-muted-light mt-2" style="display: none;">The host controls playback. Use the volume and fullscreen buttons freely.</p>
+            </div>
+
+            <div class="col-lg-4 mb-3">
+                <div class="card ws-card chat-card">
+                    <div class="card-header">Live chat</div>
+                    <div id="chatMessages" class="chat-messages">
+                        <p class="chat-empty small text-muted-light">Start a watch party to chat with friends.</p>
+                    </div>
+                    <form id="chatForm" class="chat-form">
+                        <input type="text" id="chatInput" class="form-control" placeholder="Say something..." maxlength="500" autocomplete="off" disabled>
+                        <button class="btn btn-primary ml-2" id="chatSend" disabled>Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/catalog.js"></script>
+    <script src="vendor/video.min.js"></script>
+    <script src="vendor/peerjs.min.js"></script>
+    <script src="js/watch.js"></script>
+</body>
+
+</html>
